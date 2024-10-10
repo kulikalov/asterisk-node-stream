@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "nodemon --watch ./main.ts --exec 'npx ts-node main.ts'"
+  },
+  "dependencies": {
+    "@types/node": "^22.7.5",
+    "@types/ws": "^8.5.12",
+    "nodemon": "^3.1.7",
+    "ws": "^8.18.0"
+  }
+}
