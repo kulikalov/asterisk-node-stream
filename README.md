@@ -1,7 +1,7 @@
 # asterisk-node-stream
 
 A quick experiment establishing two way connection between Asterisk and Node.js.
-The goal is to make the NodeJS server send the same audio stream back with 5s delay.
+The goal is to make the NodeJS server send the same audio stream back.
 
 ## Setup
 Run container:

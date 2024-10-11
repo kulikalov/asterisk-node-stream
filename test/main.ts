@@ -1,67 +1,54 @@
-import { WebSocketServer } from "ws";
+import net from "net";
 
-import { randomUUID } from "crypto";
-const wss = new WebSocketServer({ port: 8090 });
+const server = net.createServer((socket) => {
+  console.log("New TCP connection");
 
-wss.on("connection", function connection(ws) {
-  console.log("New WebSocket connection");
+  /**
+   * Asterisk AudioSocket endpoint
+   * The singular design goal of AudioSocket is to present the simplest possible audio streaming protocol, initially based on the constraints of Asterisk audio. Each packet contains a three-byte header and a variable payload. The header is composed of a one-byte type and a two-byte length indicator.
+   The minimum message length is three bytes: type and payload-length. Hangup indication, for instance, is 0x00 0x00 0x00.
 
-  let audioBuffer = [];
-  const delaySeconds = 5;
-  const sampleRate = 8000; // Todo: get this from the client
+  Types:
 
-  ws.on("message", function incoming(message, isBinary) {
-    if (isBinary) {
-      // // // Store incoming audio
-      // audioBuffer.push(message);
-      // // console.log(`Received audio: ${message.length} bytes`);
-      // // If we have enough audio stored, start sending it back
-      // if (audioBuffer.length > 100) {
-      //   console.log("sending");
-      //   const delayedAudio = audioBuffer.shift();
-      //   ws.send(delayedAudio, (e) => {
-      //     console.log("sent", e);
-      //   });
-      // } else {
-      //   console.log("audioBuffer.length", audioBuffer.length);
-      // }
-      // if random 0.1
-      if (Math.random() < 0.01) {
-        console.log("Sending audio");
-        ws.send(
-          JSON.stringify({
-            request: "set",
-            id: randomUUID(),
-            params: {
-              results: [
-                {
-                  text: "Hello World Test",
-                },
-              ],
-            },
-          })
-        );
-      }
-    } else {
-      console.log(`Received message: ${message}`);
-      const jsonMessage = JSON.parse(message.toString("utf-8"));
-      console.log("jsonMessage", jsonMessage);
+  - 0x00 - "end" - Terminate the connection (socket closure is also sufficient)
+  - 0x01 - "uuid" - Payload will contain the UUID (16-byte binary representation) for the audio stream
+  - 0x10 - "audio" - Payload is signed linear, 16-bit, 8kHz, mono PCM (little-endian)
+  - 0xff - "err" - An error has occurred; payload is the (optional) application-specific error code. Asterisk-generated error codes are listed below.
+   */
 
-      if (jsonMessage.request === "setup") {
-        const res = {
-          response: "setup",
-          id: jsonMessage.id,
-          codecs: jsonMessage.codecs,
-        };
-        console.log("Sending response:", res);
-        ws.send(JSON.stringify(res));
-      }
+  socket.on("data", (data) => {
+    const type = data.readUInt8(0);
+    switch (type) {
+      case 0x00:
+        console.log("Received hangup indication");
+        break;
+      case 0x01:
+        console.log("Received UUID");
+        const uuid = data.slice(3, 19).toString("hex");
+        console.log("UUID", uuid);
+        break;
+      case 0x10:
+        console.log("Received audio");
+        socket.write(data);
+        break;
+      case 0xff:
+        console.log("Received error");
+        const error = data.readUInt8(1);
+        console.log("Error code", error);
+        break;
+      default:
+        console.log("Unknown type", type);
     }
   });
-
-  ws.on("close", function close() {
-    console.log("WebSocket connection closed");
+  socket.on("end", () => {
+    console.log("TCP connection closed");
   });
 });
 
-console.log("WebSocket server running on port 8090");
+server.on("error", (err) => {
+  throw err;
+});
+
+server.listen(8091, () => {
+  console.log("TCP server running on port 8091");
+});
